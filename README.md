@@ -1,5 +1,7 @@
 # Best Revenue Model for an App
 
+** To see the html file, copy paste the raw adress here: https://htmlpreview.github.io/ **
+
 Apps can get revenue by having
 * One-Time Payment,
 * In-App Purchases, and

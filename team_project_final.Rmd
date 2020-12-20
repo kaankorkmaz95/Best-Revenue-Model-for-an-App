@@ -1,0 +1,251 @@
+---
+title: "Best Revenue Model for an App"
+author: "TEAM 31: Kaan Korkmaz, Isaac Yusufu"
+subtitle: "R for Data Science @ Hult International Business School"
+output:
+  html_notebook:
+    highlight: pygments
+    number_sections: yes
+    theme: readable
+    toc: yes
+    toc_float:
+      collapsed: yes
+---
+
+# Set-up {-}
+  
+```{r Load Packages, message=FALSE, warning=FALSE}
+library(tidyverse)
+```
+
+```{r Reading and Tidying Data, message=FALSE, warning=FALSE}
+playstore <- read_csv("./Google-Playstore.csv")
+playstore = playstore %>% 
+  rename(app_name = "App Name") %>% 
+  rename(app_id = "App Id") %>% 
+  rename(rating_count = "Rating Count") %>% 
+  rename(min_installs = "Minimum Installs") %>% 
+  rename(max_installs = "Maximum Installs") %>% 
+  rename(content = "Content Rating") %>% 
+  rename(in_app_purchase = "In App Purchases") %>% 
+  rename(ad = "Ad Supported") %>% 
+  rename(editor = "Editors Choice") %>%
+  filter(max_installs != 0) %>% 
+  mutate(log_installs = log(max_installs))
+```
+
+
+# Introduction 
+Gaming industry is worth $80 Billion and while PC and console gaming are decreasing, mobile gaming is increasing and generates more than 50% of the gaming revenue. With 2.9 million apps on the Google Play Store, it is very hard to be recognized or be one of the popular ones.
+The first thing when people look at when they first see an app on the app store is the price of it. So, the purpose of this report is to test our hypothesis for the best pricing of an app. 
+
+Apps can get revenue by having
+
+* One-Time Payment,
+* In-App Purchases, and
+* Ads 
+
+Android apps in the Google Play Store leading by revenue are as in the following [2]. You can also see their revenue policy. 
+
+```{r Top List, message=FALSE, warning=FALSE}
+top_list = playstore %>% 
+  filter(app_name == "Coin Master" |
+         app_name == "Candy Crush Jelly Saga" |
+         app_name == "Pokemon Go" |
+         app_name == "Roblox" |
+         app_name == "DRAGON BALL Z DOKKAN BATTLE" |
+         app_name == "Gardenscapes" |
+         app_name == "Homescapes" |
+         app_name == "Pandora - Streaming Music, Radio & Podcasts") %>% 
+  summarise(app_name, Free, in_app_purchase, ad)
+
+top_list
+```
+
+
+As you can see, all of the top revenue apps (except one) have the same policy:
+
+* is Free 
+* has In-app Purchase and 
+* has Ads
+
+In the following, I will go in deeper, look at the dataset and test our hypothesis that **"an app that is Free, has in-app purchase and ads, will be downloaded more."**
+
+# Data 
+
+The dataset has 1 million app on Google Play Store. 
+It is from [Kaggle](https://www.kaggle.com/gauthamp10/google-playstore-apps?select=Google-Playstore.csv).
+
+In the dataset I have information about the 
+
+* app names, 
+* their install numbers, 
+* if they are paid,
+* if they have in-app purchases, 
+* if they have ad support,
+
+and others that are not necessary for our case. 
+
+You can see 5 rows of the data in the following. 
+
+```{r First 5 Row, message=FALSE, warning=FALSE}
+# Getting first 5 rows
+playstore %>% slice_head(n=5)
+```
+
+# Analysis 
+
+## Data  
+The main variable I am looking is max_installs: which gives us how many times an app was downloaded. 
+```{r Installs Histogram, message=FALSE, warning=FALSE}
+playstore %>% 
+  ggplot(data = ., aes(x = max_installs))+
+  geom_histogram()+
+  ggtitle("Installs Histogram")
+```
+Most data is close to zero,because many apps are not successful and few are. Therefore histogram doesn't give us useful info, so I used logarithm of it. 
+
+```{r Log of Installs Histogram, message=FALSE, warning=FALSE}
+playstore %>% 
+  ggplot(data = ., aes(x = log_installs))+
+  geom_histogram()+
+  ggtitle("Log Installs - Histogram")
+```
+
+Histogram shows us log_installs has normal distribution. 
+
+## Testing Variables Seperately 
+First, I will look at the variables; "Free", "in_app_purchase" and "ad" separately with respect to "log_installs." 
+
+As can be seen from the results, for all variables, when they are "TRUE", the mean of "log_installs" are higher, meaning they are supporting our hypothesis. 
+
+```{r Testing Variables Seperately, message=FALSE, warning=FALSE}
+playstore %>% 
+  mutate(log_installs = log(max_installs)) %>% 
+  group_by(Free) %>% 
+  summarise(mean(log_installs), .groups = 'drop')
+
+playstore %>% 
+  mutate(log_installs = log(max_installs)) %>% 
+  group_by(in_app_purchase) %>% 
+  summarise(mean(log_installs), .groups = 'drop')
+
+playstore %>% 
+  mutate(log_installs = log(max_installs)) %>% 
+  group_by(ad) %>% 
+  summarise(mean(log_installs), .groups = 'drop')
+```
+
+
+## Testing Variables Together
+
+Next step is to look at them together to see if I get the same results. 
+
+For this part, I have created variables for every scenario with the variables. Capitilized letter means that the variable is "TRUE" (meaning: FiA => Free = "TRUE", in_app_purchase = "FALSE", ad = "TRUE").
+
+For each scenario (2^3 = 8), I will look at the mean values of "log_installs" and determine the best one. 
+
+As can be seen from the results, the highest mean of "log_installs" is from "FIA" meaning the apps that is Free, have in-app purchase and ads, as I hypothesized. The lowest one is when we don't have any which supports the hypothesis. 
+
+```{r Testing Variables Together, message=FALSE, warning=FALSE}
+playstore$FIA = ifelse(playstore$Free == "TRUE" & playstore$in_app_purchase == "TRUE" & playstore$ad == "TRUE", TRUE, FALSE)
+playstore$FIa = ifelse(playstore$Free == "TRUE" & playstore$in_app_purchase == "TRUE" & playstore$ad == "FALSE", TRUE, FALSE)
+playstore$FiA = ifelse(playstore$Free == "TRUE" & playstore$in_app_purchase == "FALSE" & playstore$ad == "TRUE", TRUE, FALSE)
+playstore$fIA = ifelse(playstore$Free == "FALSE" & playstore$in_app_purchase == "TRUE" & playstore$ad == "TRUE", TRUE, FALSE)
+playstore$Fia = ifelse(playstore$Free == "TRUE" & playstore$in_app_purchase == "FALSE" & playstore$ad == "FALSE", TRUE, FALSE)
+playstore$fiA = ifelse(playstore$Free == "FALSE" & playstore$in_app_purchase == "FALSE" & playstore$ad == "TRUE", TRUE, FALSE)
+playstore$fIa = ifelse(playstore$Free == "FALSE" & playstore$in_app_purchase == "TRUE" & playstore$ad == "FALSE", TRUE, FALSE)
+playstore$fia = ifelse(playstore$Free == "FALSE" & playstore$in_app_purchase == "FALSE" & playstore$ad == "FALSE", TRUE, FALSE)
+
+FIA = playstore %>% 
+  filter(FIA == TRUE)
+FIa = playstore %>% 
+  filter(FIa == TRUE)
+FiA = playstore %>% 
+  filter(FiA == TRUE)
+fIA = playstore %>% 
+  filter(fIA == TRUE)
+Fia = playstore %>% 
+  filter(Fia == TRUE)
+fiA = playstore %>% 
+  filter(fiA == TRUE)
+fIa = playstore %>% 
+  filter(fIa == TRUE)
+fia = playstore %>% 
+  filter(fia == TRUE)
+
+best = tribble(
+  ~Filter, ~Mean,
+  "FIA", mean(FIA$log_installs),
+  "FIa", mean(FIa$log_installs),
+  "FiA", mean(FiA$log_installs),
+  "fIA", mean(fIA$log_installs),
+  "Fia", mean(Fia$log_installs),
+  "fiA", mean(fiA$log_installs),
+  "fIa", mean(fIa$log_installs),
+  "fia", mean(fia$log_installs),
+)
+
+best
+```
+
+
+## Model
+
+After testing, the results are promising, so I went on creating the model for log_installs. I used "Free", "in_app_purchase", and "ad" as variables again and got the results as can be seen in the following.
+
+```{r MOdel, message=FALSE, warning=FALSE}
+lpm = playstore %>% 
+  glm(formula = log_installs ~ Free + in_app_purchase + ad, data = .)
+
+lpm %>% 
+  broom::tidy()
+```
+
+All variables are binary, so we can directly compare them to each other. We see that in-app purchases has the biggest effect followed by being free and having ads at last. 
+Standard errors are negligible compared to the estimates and P-values are considered zero, meaning I can reject the null hypothesis and say that selected variables have effect on the "log_installs." 
+
+Other important factor that we need to look is the residuals to see if there is pattern with the errors. 
+
+As can be seen from the graph, histogram of the residuals have the mean of "0" and it is bell shaped; meaning it has normal distribution. With this information we can say that the noise is random. 
+
+```{r Residuals Histogram, message=FALSE, warning=FALSE}
+lpm %>% 
+  broom::augment() %>% 
+  ggplot(data=., aes(x=.resid))+
+  geom_histogram()
+```
+
+
+# Conclusion 
+
+My hypothesis was; **"an app that is Free, has in-app purchase and ads, will be downloaded more."** 
+
+First, I tested the variables independent from each other to see if they produce the results I expected. All of them showed increase with them being "TRUE" telling us I was on the right path. 
+
+Secondly, I tested the variables together with 2^3(3 variables) = 8 probability. Again the results were as I expected. With all three variables "TRUE" we got the highest "log_install" mean. 
+
+Finally, with all the tests in the favor, I modeled with the variables and saw that the errors and p-values were as expected as well. Residue histogram showed that errors were normally distributed, meaning there weren't any patterns. 
+
+I can confidently say that null the hypothesis (there is no corrolation between the variables and the install numbers) can be rejected in the favor of alternative one which is **"an app that is Free, has in-app purchase and ads, will be downloaded more."** 
+
+I have some evidence to show that most downloaded apps have the most downloads, but it is from external sources and isn't available for +1M apps in our data. So I can only say there are evidence but I don't have enough to say that it is true. 
+
+
+# Sources 
+1 - [Kaggle](https://www.kaggle.com/gauthamp10/google-playstore-apps?select=Google-Playstore.csv)
+
+2 - [BusinessOfApps](https://www.businessofapps.com/data/app-revenues/)
+
+3 - [Statista](https://www.statista.com/statistics/220186/total-global-in-app-revenue-forecast/)
+
+4 - [Forbes](https://www.forbes.com/sites/johnkoetsier/2020/09/18/android-beats-ios-303-million-installs-and-65-million-in-app-purchases-say-android-is-a-better-gaming-platform-for-publishers/?sh=1e525ef33a90)
+
+**A note for the prof: **
+I (Kaan Korkmaz) unfortunately did all of the work by myself. There was little to none participation from my teammate. It was like "he is doing it so if I stay silent it will be okay." I wrote his name but I want it to be known. 
+
+
+
+
+
+
